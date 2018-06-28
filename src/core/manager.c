@@ -2757,6 +2757,16 @@ static int manager_dispatch_jobs_in_progress(sd_event_source *source, usec_t use
         return sd_event_source_set_enabled(source, SD_EVENT_ONESHOT);
 }
 
+/* ^^^^^^^ BEGIN HalleyAssist Changes ^^^^^^^ */
+void sigHandler(int signo)
+{
+   if (signo == SIGRTMAX)
+   {
+      watchdog_ping();
+   }
+}
+/* ^^^^^^^ END HalleyAssist Changes ^^^^^^^ */
+
 int manager_loop(Manager *m) {
         int r;
 
@@ -2769,6 +2779,40 @@ int manager_loop(Manager *m) {
         m->unit_path_cache = set_free_free(m->unit_path_cache);
 
         manager_check_finished(m);
+
+
+        /* ^^^^^^^ BEGIN HalleyAssist Changes ^^^^^^^ */
+        /* Setup the signal */
+        struct sigaction sigact;
+
+        sigemptyset(&sigact.sa_mask);
+
+        sigact.sa_flags   = SA_SIGINFO;
+        sigact.sa_handler = sigHandler;
+
+        sigaction(SIGRTMAX, &sigact, 0);
+
+        /* Setup the timer */
+        struct sigevent sigev;
+
+        memset(&sigev, 0, sizeof(sigev));
+
+        sigev.sigev_notify          = SIGEV_SIGNAL;
+        sigev.sigev_signo           = SIGRTMAX;
+        sigev.sigev_value.sival_int = 1;
+
+        timer_t timer;
+
+        int rtn = timer_create(CLOCK_REALTIME, &sigev, &timer);
+        assert(rtn == 0);
+
+        /* start the timer */
+        struct itimerspec itimer = { {1, 0}, {1, 0} };   /* 1 sec time period, that we want repeated. */
+        rtn = timer_settime(timer, 0, &itimer, 0);
+        assert(rtn == 0);
+        /* ^^^^^^^ END HalleyAssist Changes ^^^^^^^ */
+
+
 
         /* There might still be some zombies hanging around from before we were exec()'ed. Let's reap them. */
         r = sd_event_source_set_enabled(m->sigchld_event_source, SD_EVENT_ON);
