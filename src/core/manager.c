@@ -2758,7 +2758,8 @@ static int manager_dispatch_jobs_in_progress(sd_event_source *source, usec_t use
 }
 
 /* ^^^^^^^ BEGIN HalleyAssist Changes ^^^^^^^ */
-void sigHandler(int signo)
+static void sigHandler(int signo);
+static void sigHandler(int signo)
 {
    if (signo == SIGRTMAX)
    {
